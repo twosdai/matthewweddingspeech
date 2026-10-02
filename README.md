@@ -1,6 +1,6 @@
 # Mr. Matthew's Wedding Speech
 
-A sincere-looking wedding website dedicated entirely to one man's wedding speech. Written for Matthew and Brittney, delivered by Daniel, and featuring exactly one (1) floor burrito.
+A sincere-looking wedding website dedicated entirely to one man's wedding speech. Written for Matthew and Brittany, delivered by Daniel, and featuring exactly one (1) floor burrito.
 
 - `index.html` — the speech, with photos
 - `clicker.html` — Click Matthew, a game of devotion

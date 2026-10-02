@@ -14,7 +14,7 @@ const MILESTONES = {
   100: "I said STOP.",
   150: "Do you have anything else going on?",
   200: "STOP. CLICKING. ME.",
-  300: "Brittney, help.",
+  300: "Brittany, help.",
   500: "I will ride home on the rims to get away from you.",
   750: "This is my wedding.",
   1000: "...fine. Keep going.",

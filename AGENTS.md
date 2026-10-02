@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Gag wedding website for Matthew and Brittney: a tasteful wedding-site design dedicated to Daniel's speech. Static HTML/CSS/ES modules, no build step, hosted on GitHub Pages from `main` root at `matthewweddingspeech.com`.
+Gag wedding website for Matthew and Brittany: a tasteful wedding-site design dedicated to Daniel's speech. Static HTML/CSS/ES modules, no build step, hosted on GitHub Pages from `main` root at `matthewweddingspeech.com`.
 
 ## Layout
 
