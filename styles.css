@@ -429,6 +429,7 @@ main {
 }
 
 .clicker-face {
+  position: relative;
   display: block;
   width: clamp(220px, 70vw, 300px);
   aspect-ratio: 1 / 1;
@@ -439,7 +440,7 @@ main {
   background: var(--paper);
   box-shadow: 0 0 0 7px var(--cream), 0 0 0 8px var(--gold-soft), var(--shadow);
   cursor: pointer;
-  overflow: hidden;
+  overflow: visible;
   touch-action: manipulation;
   user-select: none;
   -webkit-user-select: none;
@@ -557,6 +558,223 @@ main {
   text-decoration-thickness: 1px;
 }
 
+/* ---------- Rage (clicker page only) ---------- */
+/* `--rage` (0..1) is set on <html> by clicker.js; `data-rage-level` on [data-clicker]. */
+
+.page-clicker {
+  --rage-red: #b3141c;
+  --rage-deep: #4a0609;
+  --rage-ember: #ff7a00;
+}
+
+/* Fixed red wash behind everything; opacity tracks rage so the cream bleeds to red. */
+/* Ramped so the red is deep enough for cream text by the time it flips (TEXT_FLIP_RAGE). */
+.page-clicker::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 40%, var(--rage-red), var(--rage-deep));
+  opacity: min(1, var(--rage, 0) * 1.4);
+  transition: opacity 150ms linear;
+}
+
+.page-clicker .site-header {
+  background: transparent;
+}
+
+.page-clicker,
+.page-clicker .wordmark,
+.page-clicker .site-nav a,
+.page-clicker .eyebrow,
+.page-clicker .page-title,
+.page-clicker .hero-sub,
+.page-clicker .clicker-count,
+.page-clicker .clicker-label,
+.page-clicker .btn-text,
+.page-clicker .site-header,
+.page-clicker .site-footer {
+  transition: color 150ms linear, border-color 150ms linear;
+}
+
+/* On the pink wash before the flip, muted and gold text would fall below 2:1; use ink. */
+/* `is-warm` is set on <body> by clicker.js between WARM_TEXT_RAGE and TEXT_FLIP_RAGE. */
+.page-clicker.is-warm {
+  --muted: var(--ink);
+  --gold-deep: var(--ink);
+}
+
+/* Once the page is mostly red, flip the text to cream so it stays legible. */
+/* `is-red` is set on <body> by clicker.js once rage passes TEXT_FLIP_RAGE. */
+.page-clicker.is-red {
+  --ink: var(--cream);
+  --muted: #efdcd4;
+  --green: var(--cream);
+  --gold-deep: #f3cf93;
+  --gold: #f3cf93;
+  --gold-soft: rgba(243, 207, 147, 0.5);
+  --rule: rgba(250, 247, 242, 0.25);
+}
+
+.page-clicker.is-red .clicker-count {
+  color: #fff;
+}
+
+/* The toast keeps its paper card, so it keeps the original ink regardless of rage. */
+.page-clicker .clicker-toast {
+  color: var(--green-deep);
+}
+
+.rage-bar {
+  width: min(100%, 220px);
+  height: 4px;
+  margin: var(--space-2) auto 0;
+  border-radius: 999px;
+  background: rgba(43, 42, 38, 0.12);
+  overflow: hidden;
+}
+
+.rage-bar span {
+  display: block;
+  height: 100%;
+  width: calc(var(--rage, 0) * 100%);
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--gold-soft), var(--rage-ember) 45%, var(--rage-red));
+  transition: width 120ms linear;
+}
+
+/* Face anger: red tint grows with rage via filter, plus an inner vignette. */
+.page-clicker .clicker-face img {
+  filter: saturate(calc(1 + var(--rage, 0) * 1.2)) contrast(calc(1 + var(--rage, 0) * 0.35))
+    sepia(calc(var(--rage, 0) * 0.5)) hue-rotate(calc(var(--rage, 0) * -25deg));
+  transition: filter 150ms linear;
+}
+
+.page-clicker .clicker-face::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(179, 20, 28, 0) 42%,
+    rgba(179, 20, 28, 0.55) 78%,
+    rgba(74, 6, 9, 0.9) 100%
+  );
+  opacity: var(--rage, 0);
+  transition: opacity 150ms linear;
+}
+
+[data-rage-level="hot"] .clicker-face img {
+  --shake: 1;
+  animation: shake 120ms linear infinite;
+}
+
+[data-rage-level="inferno"] .clicker-face img {
+  --shake: 2.2;
+  animation: shake 80ms linear infinite;
+}
+
+@keyframes shake {
+  0% { translate: 0 0; rotate: 0deg; }
+  25% { translate: calc(-1.2px * var(--shake, 1)) calc(0.8px * var(--shake, 1)); rotate: calc(-0.5deg * var(--shake, 1)); }
+  50% { translate: calc(1.2px * var(--shake, 1)) calc(-0.8px * var(--shake, 1)); rotate: calc(0.5deg * var(--shake, 1)); }
+  75% { translate: calc(-0.8px * var(--shake, 1)) calc(-1.2px * var(--shake, 1)); rotate: calc(-0.35deg * var(--shake, 1)); }
+  100% { translate: calc(0.8px * var(--shake, 1)) calc(1.2px * var(--shake, 1)); rotate: calc(0.4deg * var(--shake, 1)); }
+}
+
+/* Eye flames. left/top/width/--flame-tilt are set per face by clicker.js. */
+.flame {
+  position: absolute;
+  left: 50%;
+  top: 40%;
+  width: 18%;
+  aspect-ratio: 1 / 1.6;
+  z-index: 1;
+  pointer-events: none;
+  transform-origin: 50% 85%;
+  transform: translate(-50%, -85%) rotate(var(--flame-tilt, 0deg));
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  background: radial-gradient(
+    ellipse at 50% 88%,
+    #fff6c2 0%,
+    #ffd23a 20%,
+    #ff8a00 46%,
+    #e8321c 70%,
+    rgba(122, 15, 15, 0) 100%
+  );
+  filter: blur(0.5px) drop-shadow(0 0 6px var(--rage-ember));
+  mix-blend-mode: screen;
+  opacity: 0;
+  scale: 0.3;
+  transition: opacity 180ms ease, scale 220ms cubic-bezier(0.2, 0.8, 0.3, 1.2);
+  animation: flame-sway 450ms ease-in-out infinite alternate;
+}
+
+.flame::before,
+.flame::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 8%;
+  width: 56%;
+  height: 72%;
+  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+  background: radial-gradient(ellipse at 50% 92%, #fffbe0 0%, #ffe066 38%, #ff9a1f 72%, rgba(255, 122, 0, 0) 100%);
+  transform-origin: 50% 100%;
+  transform: translateX(-50%);
+  animation: flicker 380ms ease-in-out infinite alternate;
+}
+
+.flame::after {
+  width: 36%;
+  height: 50%;
+  animation-duration: 470ms;
+  animation-delay: -210ms;
+}
+
+/* Flames are invisible while calm; pause their animations rather than run them at opacity 0. */
+[data-rage-level="calm"] .flame,
+[data-rage-level="calm"] .flame::before,
+[data-rage-level="calm"] .flame::after {
+  animation-play-state: paused;
+}
+
+[data-rage-level="warm"] .flame {
+  opacity: 0.8;
+  scale: 0.6;
+}
+
+[data-rage-level="hot"] .flame {
+  opacity: 1;
+  scale: 1;
+}
+
+[data-rage-level="inferno"] .flame {
+  opacity: 1;
+  scale: 1.18;
+  box-shadow: 0 0 10px 3px rgba(255, 170, 0, 0.55);
+  animation: flame-sway 350ms ease-in-out infinite alternate, sparks 520ms ease-in-out infinite alternate;
+}
+
+@keyframes flame-sway {
+  0% { transform: translate(-50%, -85%) rotate(var(--flame-tilt, 0deg)) scaleY(0.94) skewX(-3deg); }
+  100% { transform: translate(-50%, -85%) rotate(var(--flame-tilt, 0deg)) scaleY(1.06) skewX(3deg); }
+}
+
+@keyframes flicker {
+  0% { transform: translateX(-50%) scaleY(0.9) skewX(-5deg); opacity: 0.8; }
+  50% { transform: translateX(-46%) scaleY(1.1) skewX(3deg); opacity: 1; }
+  100% { transform: translateX(-54%) scaleY(0.97) skewX(6deg); opacity: 0.9; }
+}
+
+@keyframes sparks {
+  0% { box-shadow: 0 0 8px 2px rgba(255, 170, 0, 0.5), 0 -14px 3px -2px rgba(255, 220, 90, 0.35); }
+  100% { box-shadow: 0 0 16px 6px rgba(255, 140, 0, 0.75), 0 -26px 5px -1px rgba(255, 230, 120, 0.6); }
+}
+
 /* ---------- Scroll reveal (JS only; no-op under reduced motion) ---------- */
 
 @media (prefers-reduced-motion: no-preference) {
@@ -590,5 +808,13 @@ main {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+
+  /* No shake or flicker; flames stay as static shapes, glow is constant. */
+  .page-clicker .clicker-face img,
+  .flame,
+  .flame::before,
+  .flame::after {
+    animation: none !important;
   }
 }

@@ -1,28 +1,49 @@
+import { FACES } from "./face-data.js";
+
 // Click counts at which the face advances to the next image (faces 1..9).
 // Past the last threshold, the face cycles on every click.
 const FACE_THRESHOLDS = [0, 5, 15, 30, 50, 75, 100, 150, 200];
 
 // Milestone messages, each shown once when the count lands on the key.
 const MILESTONES = {
-  10: "He’s definitely 16.",
-  25: "Please. He’s getting married today.",
-  50: "Have you considered Taco Bell?",
-  100: "But that is floor burrito.",
-  150: "Just never piss dude.",
-  200: "Riding home on the rims.",
-  500: "Ride or die.",
-  1000: "Lets all have a toast to them!",
+  5: "Hey.",
+  15: "Please stop clicking me.",
+  30: "Stop clicking me.",
+  50: "STOP CLICKING ME.",
+  75: "I am getting married today.",
+  100: "I said STOP.",
+  150: "Do you have anything else going on?",
+  200: "STOP. CLICKING. ME.",
+  300: "Brittney, help.",
+  500: "I will ride home on the rims to get away from you.",
+  750: "This is my wedding.",
+  1000: "...fine. Keep going.",
+  2000: "You have a problem.",
 };
 
-const FACE_COUNT = 9;
-const FACE_SRCS = Array.from(
-  { length: FACE_COUNT },
-  (_, i) => `images/faces/face-${String(i + 1).padStart(2, "0")}.jpg`
-);
+const FACE_SRCS = FACES.map((face) => face.src);
+const FACE_COUNT = FACE_SRCS.length;
 
 const STORAGE_KEY = "matthew-clicks";
 const MUTE_KEY = "matthew-clicks-muted";
 const TOAST_MS = 2800;
+
+// Rage (0..1) climbs per click and decays while idle; it is never persisted.
+const RAGE_PER_CLICK = 0.045;
+const RAGE_DECAY_PER_SEC = 0.18;
+const RAGE_LEVELS = [
+  [0.8, "inferno"],
+  [0.5, "hot"],
+  [0.25, "warm"],
+];
+// Rage at which the page text flips to cream; the crossover where ink and cream
+// contrast equally against the red wash (see .page-clicker.is-red in styles.css).
+const TEXT_FLIP_RAGE = 0.4;
+// Rage from which muted/gold text darkens to ink so it stays legible on the pink wash.
+const WARM_TEXT_RAGE = 0.22;
+
+// Flame width relative to the face, as a multiple of the measured eye width.
+const FLAME_WIDTH_FACTOR = 2.2;
 
 // Holds preloaded face images so they are not garbage collected.
 let preloaded = [];
@@ -53,6 +74,13 @@ function faceIndexFor(count) {
     if (count >= FACE_THRESHOLDS[i]) index = i;
   }
   return Math.min(index, FACE_COUNT - 1);
+}
+
+function rageLevelFor(rage) {
+  for (const [min, level] of RAGE_LEVELS) {
+    if (rage >= min) return level;
+  }
+  return "calm";
 }
 
 function createPopSound() {
@@ -112,6 +140,7 @@ export function initClicker() {
   const toastEl = root.querySelector("[data-clicker-toast]");
   const resetBtn = root.querySelector("[data-clicker-reset]");
   const muteBtn = root.querySelector("[data-clicker-mute]");
+  const flames = Array.from(faceBtn.querySelectorAll("[data-flame]"));
 
   preloaded = FACE_SRCS.map((src) => {
     const img = new Image();
@@ -123,20 +152,82 @@ export function initClicker() {
   let count = Math.max(0, parseInt(readStorage(STORAGE_KEY), 10) || 0);
   let muted = readStorage(MUTE_KEY) === "1";
   let toastTimer = 0;
+  let rage = 0;
+  let rageFrame = 0;
+  let rageLastTick = 0;
 
   function renderCount() {
     countEl.textContent = count.toLocaleString("en-US");
   }
 
+  // Anchors each flame on an eye; positions are fractions of the face crop.
+  // Width is also capped by the eye spacing so close-set eyes keep two flames.
+  function setFlamePositions(face) {
+    const eyes = (face && face.eyes) || [];
+    const dx = eyes.length > 1 ? Math.abs(eyes[1].x - eyes[0].x) : Infinity;
+    const width = Math.min(face ? face.eyeWidth * FLAME_WIDTH_FACTOR : 0, 0.8 * dx);
+    flames.forEach((flame, i) => {
+      const eye = eyes[i];
+      flame.style.display = eye ? "" : "none";
+      if (!eye) return;
+      flame.style.left = `${(eye.x * 100).toFixed(2)}%`;
+      flame.style.top = `${(eye.y * 100).toFixed(2)}%`;
+      flame.style.width = `${(width * 100).toFixed(2)}%`;
+      flame.style.setProperty("--flame-tilt", `${face.tilt || 0}deg`);
+    });
+  }
+
   function renderFace() {
-    const src = FACE_SRCS[faceIndexFor(count)];
-    if (faceImg.getAttribute("src") !== src) faceImg.setAttribute("src", src);
+    const face = FACES[faceIndexFor(count)];
+    if (faceImg.getAttribute("src") !== face.src) {
+      faceImg.setAttribute("src", face.src);
+      setFlamePositions(face);
+    }
   }
 
   // Label stays "Sound"; aria-pressed="true" means sound is on.
   function renderMute() {
     if (!muteBtn) return;
     muteBtn.setAttribute("aria-pressed", String(!muted));
+  }
+
+  function renderRage() {
+    document.documentElement.style.setProperty("--rage", rage.toFixed(3));
+    const level = rageLevelFor(rage);
+    if (root.getAttribute("data-rage-level") !== level) {
+      root.setAttribute("data-rage-level", level);
+    }
+    // Body classes drive text colour in CSS without relying on :has(): `is-warm`
+    // darkens muted/gold text on the pink wash until `is-red` flips it to cream.
+    const isRed = rage >= TEXT_FLIP_RAGE;
+    document.body.classList.toggle("is-red", isRed);
+    document.body.classList.toggle("is-warm", !isRed && rage >= WARM_TEXT_RAGE);
+  }
+
+  // Decay loop runs only while there is rage left to burn off.
+  function tickRage(now) {
+    // rAF timestamps can precede the performance.now() that armed the loop; clamp dt to [0, 0.1].
+    const dt = Math.min(Math.max(0, now - rageLastTick) / 1000, 0.1);
+    rageLastTick = now;
+    rage = Math.max(0, rage - RAGE_DECAY_PER_SEC * dt);
+    renderRage();
+    rageFrame = rage > 0 ? window.requestAnimationFrame(tickRage) : 0;
+  }
+
+  function addRage(amount) {
+    rage = Math.min(1, Math.max(0, rage + amount));
+    renderRage();
+    if (!rageFrame && rage > 0) {
+      rageLastTick = performance.now();
+      rageFrame = window.requestAnimationFrame(tickRage);
+    }
+  }
+
+  function resetRage() {
+    window.cancelAnimationFrame(rageFrame);
+    rageFrame = 0;
+    rage = 0;
+    renderRage();
   }
 
   function showToast(message) {
@@ -177,6 +268,7 @@ export function initClicker() {
     writeStorage(STORAGE_KEY, String(count));
     renderCount();
     renderFace();
+    addRage(RAGE_PER_CLICK);
     pop();
     spawnPlusOne(clientX, clientY);
     if (!muted) popSound.play();
@@ -213,6 +305,7 @@ export function initClicker() {
       writeStorage(STORAGE_KEY, "0");
       renderCount();
       renderFace();
+      resetRage();
       window.clearTimeout(toastTimer);
       if (toastEl) {
         toastEl.textContent = "";
@@ -231,6 +324,11 @@ export function initClicker() {
 
   renderCount();
   renderFace();
+  setFlamePositions(FACES[faceIndexFor(count)]);
+  renderRage();
   renderMute();
-  faceBtn.addEventListener("animationend", () => faceBtn.classList.remove("is-popping"));
+  // Flame flicker also fires animationend; only the button's own pop should clear.
+  faceBtn.addEventListener("animationend", (event) => {
+    if (event.target === faceBtn) faceBtn.classList.remove("is-popping");
+  });
 }
