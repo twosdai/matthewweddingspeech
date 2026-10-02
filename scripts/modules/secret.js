@@ -11,20 +11,18 @@ export function initSecret() {
   const reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   let clicks = 0;
   let revealed = false;
-  let counter = null;
   let pokeTimer = 0;
 
   const announce = (text) => {
     if (status) status.textContent = text;
   };
 
-  // Once revealed the trigger is inert: no role, not focusable, no counter.
+  // Once revealed the trigger is inert: no role, not focusable.
   const retire = () => {
     revealed = true;
     trigger.setAttribute("aria-disabled", "true");
     trigger.removeAttribute("role");
     trigger.removeAttribute("tabindex");
-    if (counter) counter.remove();
   };
 
   const reveal = () => {
@@ -46,33 +44,12 @@ export function initSecret() {
     pokeTimer = setTimeout(() => trigger.classList.remove("is-poked"), 150);
   };
 
-  const showCount = (left) => {
-    if (!counter) {
-      counter = document.createElement("span");
-      counter.className = "secret-counter";
-      counter.setAttribute("data-secret-counter", "");
-      counter.setAttribute("aria-hidden", "true");
-      trigger.append(counter);
-    }
-    counter.textContent = `${left} more`;
-    counter.classList.remove("is-pulsing");
-    void counter.offsetWidth;
-    counter.classList.add("is-pulsing");
-  };
-
+  // No progress hint of any kind: only the squash, then the reveal.
   const tap = () => {
     if (revealed) return;
     clicks += 1;
     poke();
-    if (clicks >= SECRET_CLICKS) {
-      reveal();
-      return;
-    }
-    const left = SECRET_CLICKS - clicks;
-    showCount(left);
-    if (clicks === 1 || clicks === 5 || clicks === 9) {
-      announce(`${left} more click${left === 1 ? "" : "s"} to go.`);
-    }
+    if (clicks >= SECRET_CLICKS) reveal();
   };
 
   let stored = null;

@@ -24,7 +24,7 @@ CNAME, .nojekyll            GitHub Pages config
 - Behaviour is hooked by `data-*` attributes, never by class or id. Each `init*` function in `scripts/modules/` returns early when its hook is absent, so `main.js` is shared by every page.
   - `[data-reveal]` sections fade in on scroll.
   - `[data-clicker]` root; `[data-clicker-count]`, `[data-clicker-face]`, `[data-clicker-stage]`, `[data-clicker-toast]`, `[data-clicker-reset]`, `[data-clicker-mute]`.
-  - `[data-secret-trigger]` figure (clicked ten times) reveals `[data-secret-target hidden]`; `[data-secret-status]` live region inside the trigger. Reveal persists in `localStorage` (`tupac-revealed`).
+  - `[data-secret-trigger]` figure (clicked ten times) reveals `[data-secret-target hidden]`; `[data-secret-status]` live region inside the trigger announces only the reveal. No visible progress hint, just the squash per click. Reveal persists in `localStorage` (`tupac-revealed`).
 - Classes are for styling only. Colours, fonts, and spacing are custom properties on `:root` in `styles.css`.
 - Speech text is verbatim from the `.txt` (curly quotes preserved). Do not edit the wording.
 - Do not modify the full-resolution originals in the repo root (they are deployed and public alongside the site) or the web copies in `images/`.
